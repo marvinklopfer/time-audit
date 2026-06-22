@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Time Audit</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; background: #f5f5f7; color: #1d1d1f; min-height: 100vh; padding: 20px 16px 40px; }
+  h1 { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 4px; letter-spacing: -0.3px; }
+  .date { text-align: center; font-size: 13px; color: #86868b; margin-bottom: 28px; }
+  .timer-card { background: #fff; border-radius: 20px; padding: 32px 24px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 16px; }
+  .timer-display { font-size: 56px; font-weight: 200; letter-spacing: -2px; color: #1d1d1f; font-variant-numeric: tabular-nums; margin-bottom: 8px; line-height: 1; }
+  .timer-status { font-size: 13px; color: #86868b; margin-bottom: 28px; min-height: 18px; }
+  .btn-main { width: 120px; height: 120px; border-radius: 60px; border: none; font-size: 18px; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.1s; display: inline-flex; align-items: center; justify-content: center; letter-spacing: 0.5px; }
+  .btn-main:active { transform: scale(0.95); opacity: 0.85; }
+  .btn-start { background: #34c759; color: #fff; }
+  .btn-stop  { background: #ff3b30; color: #fff; }
+  .form-overlay { display: none; background: #fff; border-radius: 20px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 16px; }
+  .form-overlay.visible { display: block; }
+  .form-overlay h2 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .duration-badge { display: inline-block; background: #f5f5f7; border-radius: 8px; padding: 4px 10px; font-size: 13px; color: #86868b; margin-bottom: 20px; }
+  .field-label { font-size: 13px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .task-input { width: 100%; border: 1.5px solid #e5e5ea; border-radius: 12px; padding: 12px 14px; font-size: 16px; font-family: inherit; outline: none; margin-bottom: 20px; transition: border-color 0.2s; }
+  .task-input:focus { border-color: #007aff; }
+  .toggle-group { display: flex; gap: 10px; margin-bottom: 20px; }
+  .toggle-btn { flex: 1; padding: 12px; border: 1.5px solid #e5e5ea; border-radius: 12px; background: #fff; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .toggle-btn.selected-green { background: #d1f5da; border-color: #34c759; color: #1a7a35; }
+  .toggle-btn.selected-red   { background: #ffd5d3; border-color: #ff3b30; color: #c0392b; }
+  .cost-group { display: flex; gap: 8px; margin-bottom: 24px; }
+  .cost-btn { flex: 1; padding: 10px 4px; border: 1.5px solid #e5e5ea; border-radius: 10px; background: #fff; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; color: #1d1d1f; }
+  .cost-btn.selected { background: #e8f4ff; border-color: #007aff; color: #007aff; }
+  .btn-submit { width: 100%; padding: 14px; background: #007aff; color: #fff; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity 0.15s; }
+  .btn-submit:active { opacity: 0.8; }
+  .btn-submit:disabled { background: #c7c7cc; cursor: default; }
+  .log-section { background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 16px; }
+  .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .log-header h2 { font-size: 17px; font-weight: 600; }
+  .btn-export { padding: 7px 14px; background: #f5f5f7; border: none; border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; color: #007aff; }
+  .btn-export:active { opacity: 0.7; }
+  .empty-state { text-align: center; color: #86868b; font-size: 14px; padding: 24px 0; }
+  .log-entry { border-bottom: 1px solid #f2f2f7; padding: 12px 0; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+  .log-task { font-size: 15px; font-weight: 500; flex: 1; padding-right: 8px; }
+  .log-duration { font-size: 13px; color: #86868b; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .log-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-green { background: #d1f5da; color: #1a7a35; }
+  .badge-red   { background: #ffd5d3; color: #c0392b; }
+  .badge-cost  { background: #f5f5f7; color: #86868b; }
+  .log-time { font-size: 12px; color: #aeaeb2; }
+  .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(60px); background: #1d1d1f; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; transition: transform 0.3s; z-index: 100; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .summary-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .summary-pill { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #f5f5f7; color: #86868b; }
+  .hint { text-align: center; font-size: 12px; color: #aeaeb2; margin-top: -8px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<h1>Time Audit</h1>
+<div class="date" id="dateDisplay"></div>
+<div class="hint">Zum Speichern: Teilen → Zum Home-Bildschirm</div>
+
+<div class="timer-card">
+  <div class="timer-display" id="timerDisplay">00:00:00</div>
+  <div class="timer-status" id="timerStatus"></div>
+  <button class="btn-main btn-start" id="mainBtn" onclick="toggleTimer()">START</button>
+</div>
+
+<div class="form-overlay" id="formOverlay">
+  <h2>Was hast du gemacht?</h2>
+  <div class="duration-badge" id="durationBadge"></div>
+  <div class="field-label">Aufgabe</div>
+  <input class="task-input" id="taskInput" type="text" placeholder="z.B. Emails beantworten" autocomplete="off" />
+  <div class="field-label">Energie</div>
+  <div class="toggle-group">
+    <button class="toggle-btn" id="btnGreen" onclick="selectEnergy('green')">🟢 Gibt Energie</button>
+    <button class="toggle-btn" id="btnRed"   onclick="selectEnergy('red')">🔴 Nimmt Energie</button>
+  </div>
+  <div class="field-label">Kosten zum Abgeben</div>
+  <div class="cost-group">
+    <button class="cost-btn" id="cost1" onclick="selectCost('€')">€<br><span style="font-size:10px;font-weight:400">leicht</span></button>
+    <button class="cost-btn" id="cost2" onclick="selectCost('€€')">€€<br><span style="font-size:10px;font-weight:400">mittel</span></button>
+    <button class="cost-btn" id="cost3" onclick="selectCost('€€€')">€€€<br><span style="font-size:10px;font-weight:400">schwer</span></button>
+    <button class="cost-btn" id="cost4" onclick="selectCost('€€€€')">€€€€<br><span style="font-size:10px;font-weight:400">nur ich</span></button>
+  </div>
+  <button class="btn-submit" id="submitBtn" onclick="saveEntry()" disabled>Eintragen</button>
+</div>
+
+<div class="log-section">
+  <div class="log-header">
+    <h2>Einträge heute</h2>
+    <button class="btn-export" onclick="exportForVault()">Für Vault kopieren</button>
+  </div>
+  <div id="summaryBar" class="summary-bar"></div>
+  <div id="logList"><div class="empty-state">Noch keine Einträge</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let running = false, startTime = null, timerInterval = null;
+  let lastDuration = 0, lastDurationStr = '';
+  let selectedEnergy = null, selectedCost = null;
+  const STORAGE_KEY = 'timeaudit_entries';
+
+  function getEntries() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; } }
+  function saveEntries(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+
+  function formatDuration(ms) {
+    const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    return [h,m,sec].map(n => String(n).padStart(2,'0')).join(':');
+  }
+  function formatDurationShort(ms) {
+    const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+    return h > 0 ? `${h}h ${m}min` : `${m}min`;
+  }
+
+  function setDate() {
+    const days = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+    const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    const d = new Date();
+    document.getElementById('dateDisplay').textContent = `${days[d.getDay()]}, ${d.getDate()}. ${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  // Timer läuft auch im Hintergrund weiter (timestamp-basiert)
+  function toggleTimer() {
+    if (!running) {
+      startTime = Date.now();
+      localStorage.setItem('ta_start', startTime);
+      running = true;
+      timerInterval = setInterval(tick, 1000);
+      document.getElementById('mainBtn').className = 'btn-main btn-stop';
+      document.getElementById('mainBtn').textContent = 'STOP';
+      document.getElementById('timerStatus').textContent = 'Timer läuft…';
+    } else {
+      clearInterval(timerInterval); running = false;
+      lastDuration = Date.now() - startTime;
+      lastDurationStr = formatDurationShort(lastDuration);
+      localStorage.removeItem('ta_start');
+      document.getElementById('mainBtn').className = 'btn-main btn-start';
+      document.getElementById('mainBtn').textContent = 'START';
+      document.getElementById('timerStatus').textContent = '';
+      document.getElementById('timerDisplay').textContent = '00:00:00';
+      showForm();
+    }
+  }
+
+  function tick() {
+    document.getElementById('timerDisplay').textContent = formatDuration(Date.now() - startTime);
+  }
+
+  // Beim Öffnen: laufenden Timer wiederherstellen
+  function restoreTimer() {
+    const saved = localStorage.getItem('ta_start');
+    if (saved) {
+      startTime = parseInt(saved);
+      running = true;
+      timerInterval = setInterval(tick, 1000);
+      document.getElementById('mainBtn').className = 'btn-main btn-stop';
+      document.getElementById('mainBtn').textContent = 'STOP';
+      document.getElementById('timerStatus').textContent = 'Timer läuft…';
+      tick();
+    }
+  }
+
+  function showForm() {
+    document.getElementById('durationBadge').textContent = `⏱ ${lastDurationStr}`;
+    document.getElementById('taskInput').value = '';
+    selectedEnergy = null; selectedCost = null;
+    document.getElementById('btnGreen').className = 'toggle-btn';
+    document.getElementById('btnRed').className = 'toggle-btn';
+    ['cost1','cost2','cost3','cost4'].forEach(id => document.getElementById(id).className = 'cost-btn');
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('formOverlay').className = 'form-overlay visible';
+    setTimeout(() => document.getElementById('taskInput').focus(), 100);
+    document.getElementById('taskInput').addEventListener('input', checkForm);
+  }
+
+  function selectEnergy(type) {
+    selectedEnergy = type;
+    document.getElementById('btnGreen').className = 'toggle-btn' + (type === 'green' ? ' selected-green' : '');
+    document.getElementById('btnRed').className = 'toggle-btn' + (type === 'red' ? ' selected-red' : '');
+    checkForm();
+  }
+
+  function selectCost(val) {
+    selectedCost = val;
+    ['cost1','cost2','cost3','cost4'].forEach(id => document.getElementById(id).className = 'cost-btn');
+    const map = {'€':'cost1','€€':'cost2','€€€':'cost3','€€€€':'cost4'};
+    if (map[val]) document.getElementById(map[val]).className = 'cost-btn selected';
+    checkForm();
+  }
+
+  function checkForm() {
+    document.getElementById('submitBtn').disabled = !(document.getElementById('taskInput').value.trim() && selectedEnergy && selectedCost);
+  }
+
+  function saveEntry() {
+    const task = document.getElementById('taskInput').value.trim();
+    if (!task || !selectedEnergy || !selectedCost) return;
+    const now = new Date();
+    const entry = {
+      date: now.toISOString().split('T')[0],
+      time: now.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}),
+      task, duration: lastDurationStr, durationMs: lastDuration,
+      energy: selectedEnergy, cost: selectedCost
+    };
+    const entries = getEntries(); entries.push(entry); saveEntries(entries);
+    document.getElementById('formOverlay').className = 'form-overlay';
+    renderLog(); showToast('Eingetragen ✓');
+  }
+
+  function renderLog() {
+    const today = new Date().toISOString().split('T')[0];
+    const entries = getEntries().filter(e => e.date === today);
+    const list = document.getElementById('logList');
+    if (entries.length === 0) {
+      list.innerHTML = '<div class="empty-state">Noch keine Einträge</div>';
+      document.getElementById('summaryBar').innerHTML = '';
+      return;
+    }
+    const totalMs = entries.reduce((sum, e) => sum + (e.durationMs || 0), 0);
+    document.getElementById('summaryBar').innerHTML =
+      `<span class="summary-pill">⏱ ${formatDurationShort(totalMs)} total</span>` +
+      `<span class="summary-pill">🟢 ${entries.filter(e=>e.energy==='green').length} Einträge</span>` +
+      `<span class="summary-pill">🔴 ${entries.filter(e=>e.energy==='red').length} Einträge</span>`;
+    list.innerHTML = [...entries].reverse().map(e => `
+      <div class="log-entry">
+        <div class="log-entry-top">
+          <div class="log-task">${e.task}</div>
+          <div class="log-duration">${e.duration}</div>
+        </div>
+        <div class="log-meta">
+          <span class="badge ${e.energy==='green'?'badge-green':'badge-red'}">${e.energy==='green'?'🟢 Energie':'🔴 Energie'}</span>
+          <span class="badge badge-cost">${e.cost}</span>
+          <span class="log-time">${e.time}</span>
+        </div>
+      </div>`).join('');
+  }
+
+  function exportForVault() {
+    const today = new Date().toISOString().split('T')[0];
+    const entries = getEntries().filter(e => e.date === today);
+    if (entries.length === 0) { showToast('Noch keine Einträge heute'); return; }
+    const days = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+    const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    const d = new Date();
+    let md = `## Time Audit — ${days[d.getDay()]}, ${d.getDate()}. ${months[d.getMonth()]} ${d.getFullYear()}\n\n`;
+    md += `| Zeit | Aufgabe | Dauer | Energie | Abgeben |\n|---|---|---|---|---|\n`;
+    entries.forEach(e => { md += `| ${e.time} | ${e.task} | ${e.duration} | ${e.energy==='green'?'🟢':'🔴'} | ${e.cost} |\n`; });
+    const totalMs = entries.reduce((sum,e) => sum+(e.durationMs||0), 0);
+    md += `\n**Total:** ${formatDurationShort(totalMs)} | 🟢 ${entries.filter(e=>e.energy==='green').length} | 🔴 ${entries.filter(e=>e.energy==='red').length}\n`;
+    navigator.clipboard.writeText(md).then(() => showToast('Kopiert ✓')).catch(() => { prompt('Kopiere diesen Text:', md); });
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast show';
+    setTimeout(() => { t.className = 'toast'; }, 2000);
+  }
+
+  setDate(); restoreTimer(); renderLog();
+</script>
+</body>
+</html>
