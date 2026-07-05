@@ -28,6 +28,7 @@
   .toggle-btn { flex: 1; padding: 12px; border: 1.5px solid #e5e5ea; border-radius: 12px; background: #fff; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .toggle-btn.selected-green { background: #d1f5da; border-color: #34c759; color: #1a7a35; }
   .toggle-btn.selected-red   { background: #ffd5d3; border-color: #ff3b30; color: #c0392b; }
+  .toggle-btn.selected-neutral { background: #fff4cc; border-color: #ffcc00; color: #8a6d00; }
   .cost-group { display: flex; gap: 8px; margin-bottom: 24px; }
   .cost-btn { flex: 1; padding: 10px 4px; border: 1.5px solid #e5e5ea; border-radius: 10px; background: #fff; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; color: #1d1d1f; }
   .cost-btn.selected { background: #e8f4ff; border-color: #007aff; color: #007aff; }
@@ -39,6 +40,8 @@
   .log-header h2 { font-size: 17px; font-weight: 600; }
   .btn-export { padding: 7px 14px; background: #f5f5f7; border: none; border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; color: #007aff; }
   .btn-export:active { opacity: 0.7; }
+  .btn-clear { padding: 7px 14px; background: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; color: #ff3b30; }
+  .btn-clear:active { opacity: 0.7; }
   .empty-state { text-align: center; color: #86868b; font-size: 14px; padding: 24px 0; }
   .log-entry { border-bottom: 1px solid #f2f2f7; padding: 12px 0; }
   .log-entry:last-child { border-bottom: none; }
@@ -49,6 +52,7 @@
   .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
   .badge-green { background: #d1f5da; color: #1a7a35; }
   .badge-red   { background: #ffd5d3; color: #c0392b; }
+  .badge-neutral { background: #fff4cc; color: #8a6d00; }
   .badge-cost  { background: #f5f5f7; color: #86868b; }
   .log-time { font-size: 12px; color: #aeaeb2; }
   .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(60px); background: #1d1d1f; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; transition: transform 0.3s; z-index: 100; }
@@ -78,6 +82,7 @@
   <div class="field-label">Energie</div>
   <div class="toggle-group">
     <button class="toggle-btn" id="btnGreen" onclick="selectEnergy('green')">🟢 Gibt Energie</button>
+    <button class="toggle-btn" id="btnNeutral" onclick="selectEnergy('neutral')">🟡 Neutral</button>
     <button class="toggle-btn" id="btnRed"   onclick="selectEnergy('red')">🔴 Nimmt Energie</button>
   </div>
   <div class="field-label">Kosten zum Abgeben</div>
@@ -93,7 +98,10 @@
 <div class="log-section">
   <div class="log-header">
     <h2>Einträge heute</h2>
-    <button class="btn-export" onclick="exportForVault()">Für Vault kopieren</button>
+    <div style="display:flex; gap:8px;">
+      <button class="btn-clear" onclick="clearDay()">Tag löschen</button>
+      <button class="btn-export" onclick="exportForVault()">Für Vault kopieren</button>
+    </div>
   </div>
   <div id="summaryBar" class="summary-bar"></div>
   <div id="logList"><div class="empty-state">Noch keine Einträge</div></div>
@@ -172,6 +180,7 @@
     document.getElementById('taskInput').value = '';
     selectedEnergy = null; selectedCost = null;
     document.getElementById('btnGreen').className = 'toggle-btn';
+    document.getElementById('btnNeutral').className = 'toggle-btn';
     document.getElementById('btnRed').className = 'toggle-btn';
     ['cost1','cost2','cost3','cost4'].forEach(id => document.getElementById(id).className = 'cost-btn');
     document.getElementById('submitBtn').disabled = true;
@@ -183,6 +192,7 @@
   function selectEnergy(type) {
     selectedEnergy = type;
     document.getElementById('btnGreen').className = 'toggle-btn' + (type === 'green' ? ' selected-green' : '');
+    document.getElementById('btnNeutral').className = 'toggle-btn' + (type === 'neutral' ? ' selected-neutral' : '');
     document.getElementById('btnRed').className = 'toggle-btn' + (type === 'red' ? ' selected-red' : '');
     checkForm();
   }
@@ -226,8 +236,9 @@
     const totalMs = entries.reduce((sum, e) => sum + (e.durationMs || 0), 0);
     document.getElementById('summaryBar').innerHTML =
       `<span class="summary-pill">⏱ ${formatDurationShort(totalMs)} total</span>` +
-      `<span class="summary-pill">🟢 ${entries.filter(e=>e.energy==='green').length} Einträge</span>` +
-      `<span class="summary-pill">🔴 ${entries.filter(e=>e.energy==='red').length} Einträge</span>`;
+      `<span class="summary-pill">🟢 ${entries.filter(e=>e.energy==='green').length}</span>` +
+      `<span class="summary-pill">🟡 ${entries.filter(e=>e.energy==='neutral').length}</span>` +
+      `<span class="summary-pill">🔴 ${entries.filter(e=>e.energy==='red').length}</span>`;
     list.innerHTML = [...entries].reverse().map(e => `
       <div class="log-entry">
         <div class="log-entry-top">
@@ -235,7 +246,7 @@
           <div class="log-duration">${e.duration}</div>
         </div>
         <div class="log-meta">
-          <span class="badge ${e.energy==='green'?'badge-green':'badge-red'}">${e.energy==='green'?'🟢 Energie':'🔴 Energie'}</span>
+          <span class="badge badge-${e.energy}">${e.energy==='green'?'🟢 Energie':e.energy==='red'?'🔴 Energie':'🟡 Neutral'}</span>
           <span class="badge badge-cost">${e.cost}</span>
           <span class="log-time">${e.time}</span>
         </div>
@@ -251,10 +262,21 @@
     const d = new Date();
     let md = `## Time Audit — ${days[d.getDay()]}, ${d.getDate()}. ${months[d.getMonth()]} ${d.getFullYear()}\n\n`;
     md += `| Zeit | Aufgabe | Dauer | Energie | Abgeben |\n|---|---|---|---|---|\n`;
-    entries.forEach(e => { md += `| ${e.time} | ${e.task} | ${e.duration} | ${e.energy==='green'?'🟢':'🔴'} | ${e.cost} |\n`; });
+    const em = { green:'🟢', neutral:'🟡', red:'🔴' };
+    entries.forEach(e => { md += `| ${e.time} | ${e.task} | ${e.duration} | ${em[e.energy]||'—'} | ${e.cost} |\n`; });
     const totalMs = entries.reduce((sum,e) => sum+(e.durationMs||0), 0);
-    md += `\n**Total:** ${formatDurationShort(totalMs)} | 🟢 ${entries.filter(e=>e.energy==='green').length} | 🔴 ${entries.filter(e=>e.energy==='red').length}\n`;
+    md += `\n**Total:** ${formatDurationShort(totalMs)} | 🟢 ${entries.filter(e=>e.energy==='green').length} | 🟡 ${entries.filter(e=>e.energy==='neutral').length} | 🔴 ${entries.filter(e=>e.energy==='red').length}\n`;
     navigator.clipboard.writeText(md).then(() => showToast('Kopiert ✓')).catch(() => { prompt('Kopiere diesen Text:', md); });
+  }
+
+  function clearDay() {
+    const today = new Date().toISOString().split('T')[0];
+    const todays = getEntries().filter(e => e.date === today);
+    if (todays.length === 0) { showToast('Nichts zu löschen'); return; }
+    if (!confirm(`Zeitverlauf von heute wirklich löschen? (${todays.length} Einträge)`)) return;
+    saveEntries(getEntries().filter(e => e.date !== today));
+    renderLog();
+    showToast('Tag gelöscht ✓');
   }
 
   function showToast(msg) {
