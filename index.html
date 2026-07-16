@@ -97,8 +97,9 @@
 
 <div class="log-section">
   <div class="log-header">
-    <h2>Einträge heute</h2>
-    <div style="display:flex; gap:8px;">
+    <h2>Einträge</h2>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <input type="date" id="datePick" onchange="changeDate()" style="border:1.5px solid #e5e5ea; border-radius:8px; padding:5px 8px; font-family:inherit; font-size:13px;">
       <button class="btn-clear" onclick="clearDay()">Tag löschen</button>
       <button class="btn-export" onclick="exportForVault()">Für Vault kopieren</button>
     </div>
@@ -114,6 +115,12 @@
   let lastDuration = 0, lastDurationStr = '';
   let selectedEnergy = null, selectedCost = null;
   const STORAGE_KEY = 'timeaudit_entries';
+  // Logischer Tag: Grenze 05:00 — was zwischen 00:00 und 05:00 geloggt wird, zählt zum Vortag
+  function logicalDateStr(dt) {
+    const d = new Date(dt.getTime() - 5*3600*1000);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  let selectedDate = logicalDateStr(new Date());
 
   function getEntries() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; } }
   function saveEntries(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
@@ -214,7 +221,7 @@
     if (!task || !selectedEnergy || !selectedCost) return;
     const now = new Date();
     const entry = {
-      date: now.toISOString().split('T')[0],
+      date: logicalDateStr(now),
       time: now.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}),
       task, duration: lastDurationStr, durationMs: lastDuration,
       energy: selectedEnergy, cost: selectedCost
@@ -225,8 +232,7 @@
   }
 
   function renderLog() {
-    const today = new Date().toISOString().split('T')[0];
-    const entries = getEntries().filter(e => e.date === today);
+    const entries = getEntries().filter(e => e.date === selectedDate);
     const list = document.getElementById('logList');
     if (entries.length === 0) {
       list.innerHTML = '<div class="empty-state">Noch keine Einträge</div>';
@@ -254,12 +260,11 @@
   }
 
   function exportForVault() {
-    const today = new Date().toISOString().split('T')[0];
-    const entries = getEntries().filter(e => e.date === today);
-    if (entries.length === 0) { showToast('Noch keine Einträge heute'); return; }
+    const entries = getEntries().filter(e => e.date === selectedDate);
+    if (entries.length === 0) { showToast('Keine Einträge an diesem Tag'); return; }
     const days = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
     const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-    const d = new Date();
+    const d = new Date(selectedDate + 'T12:00:00');
     let md = `## Time Audit — ${days[d.getDay()]}, ${d.getDate()}. ${months[d.getMonth()]} ${d.getFullYear()}\n\n`;
     md += `| Zeit | Aufgabe | Dauer | Energie | Abgeben |\n|---|---|---|---|---|\n`;
     const em = { green:'🟢', neutral:'🟡', red:'🔴' };
@@ -270,11 +275,10 @@
   }
 
   function clearDay() {
-    const today = new Date().toISOString().split('T')[0];
-    const todays = getEntries().filter(e => e.date === today);
+    const todays = getEntries().filter(e => e.date === selectedDate);
     if (todays.length === 0) { showToast('Nichts zu löschen'); return; }
-    if (!confirm(`Zeitverlauf von heute wirklich löschen? (${todays.length} Einträge)`)) return;
-    saveEntries(getEntries().filter(e => e.date !== today));
+    if (!confirm(`Zeitverlauf vom ${selectedDate} wirklich löschen? (${todays.length} Einträge)`)) return;
+    saveEntries(getEntries().filter(e => e.date !== selectedDate));
     renderLog();
     showToast('Tag gelöscht ✓');
   }
@@ -285,7 +289,13 @@
     setTimeout(() => { t.className = 'toast'; }, 2000);
   }
 
-  setDate(); restoreTimer(); renderLog();
+  function changeDate() {
+    selectedDate = document.getElementById('datePick').value || logicalDateStr(new Date());
+    renderLog();
+  }
+  setDate();
+  document.getElementById('datePick').value = selectedDate;
+  restoreTimer(); renderLog();
 </script>
 </body>
 </html>
